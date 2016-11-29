@@ -6,12 +6,19 @@
  const MAX_X = 1600;
  const MAX_Y = 7500;
  const MAX_THRUST = 150;
- const MAX_SEE_AHEAD = 800;
+ const MAX_SEE_AHEAD = 1000;
+ const MAX_VELOCITY = Math.ceil(Math.pow(10, 6) * Math.sqrt(2));
+ const SNAFFLE_RADIUS = 150;
+ const WIZARD_RADIUS = 400;
+ const BLUDGER_RADIUS = 200;
+ const BLUDGER_COLISION_RADIUS = WIZARD_RADIUS + BLUDGER_RADIUS;
 
  const goalL = new Vector(0, 3750);
  const goalR = new Vector(16000, 3750);
 
-function Vector(x, y) {
+
+
+ function Vector(x, y) {
   this.x = x;
   this.y = y;
 
@@ -20,7 +27,7 @@ function Vector(x, y) {
   };
 
   this.add = (other) => {
-    return new Vector(this.x + other.x, this.y - other.y);
+    return new Vector(this.x + other.x, this.y + other.y);
   };
 
   this.sub = (other) => {
@@ -80,8 +87,11 @@ function Entity(id, x, y, vx, vy, state, mass) {
 
 var myTeamId = +readline();
 
+var mana = 0;
+
 // game loop
 while (true) {
+    mana++;
     var entities = parseInt(readline()); // number of entities still in game
     var snaffles = [];
     var myWizards = [];
@@ -116,6 +126,7 @@ while (true) {
             break;
         }
     }
+
     for (var i = 0, len = myWizards.length; i < len; i++) {
 
       var myWizard = myWizards[i];
@@ -123,24 +134,50 @@ while (true) {
       if (myWizard.state === 0) {
         if (snaffles.length > 0) {
           var closestSnaffle = myWizard.closest(snaffles);
-          printErr(`Closest id: ${closestSnaffle.id}`)
           var closestBludger = myWizard.closest(bludgers);
+          var futureClosestBudgerPos = closestBludger.pos.add(closestBludger.vel);
 
-          var desiredVel = closestSnaffle.pos.sub(myWizard.pos).setMag(MAX_THRUST);
+          var desiredVel = closestSnaffle.pos.sub(myWizard.pos).setMag(MAX_VELOCITY);
+          var steer = desiredVel.sub(myWizard.vel);
+          var newVel = myWizard.vel.add(steer).limit(MAX_THRUST);
 
-          var steer = desiredVel.sub(myWizard.vel).limit(MAX_THRUST);
-
-          var newVel = myWizard.vel.add(steer);
-
-          var thrust = Math.min(Math.ceil(newVel.mag()), 150);
+          // AVOIDANCE
 
           var newPos = myWizard.pos.add(newVel);
 
-          snaffles = snaffles.filter((s) => {
-            return s.id != closestSnaffle.id;
-          });
+          printErr(JSON.stringify(newPos));
+
+          var ahead = newPos.setMag(MAX_SEE_AHEAD);
+          var ahead2 = newPos.setMag(MAX_SEE_AHEAD * 0.5);
+
+          var delta1 = ahead.sub(futureClosestBudgerPos).mag();
+          var delta2 = ahead2.sub(futureClosestBudgerPos).mag();
+
+          printErr(delta1);
+          printErr(delta2);
+
+          if (delta1 <= BLUDGER_COLISION_RADIUS || delta2 <= BLUDGER_COLISION_RADIUS) {
+            if (mana > 10) {
+              print(`PETRIFICUS ${closestBludger.id}`);
+              mana = mana - 10;
+              continue;
+            }
+            if (mana >= 5) {
+              print(`OBLIVIATE ${closestBludger.id}`);
+              mana = mana - 5;
+              continue;
+            }
+            var avoidanceForce = ahead.sub(futureClosestBudgerPos);
+            newVel = newVel.add(avoidanceForce);
+            newPos = myWizard.pos.add(newVel);
+          }
+
+
+
+          var thrust = Math.min(Math.ceil(newVel.mag()), 150);
 
           print(`MOVE ${Math.ceil(newPos.x)} ${Math.ceil(newPos.y)} ${thrust}`);
+
         } else {
           print("MOVE 8000 3750 150");
         }
@@ -151,6 +188,10 @@ while (true) {
         }
         print(`THROW ${goal.x} ${goal.y} 500`);
       }
+
+      mana = Math.min(mana, 100);
+
+
 
         // Write an action using print()
         // To debug: printErr('Debug messages...');
