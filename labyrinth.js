@@ -2,22 +2,6 @@
  * Auto-generated code below aims at helping you parse
  * the standard input according to the problem statement.
  **/
-function * readlineGen () {
-  yield '10 10 10';
-}
-
-if (!readline) {
-  var readline = function () {
-    return readlineGen.next().value;
-  };
-}
-
-if (!print) {
-  var print = function (param) {
-    console.log(param);
-  };
-}
-
 var inputs = readline().split(' ');
 var rows = +inputs[0]; // number of rows.
 var cols = +inputs[1]; // number of columns.
@@ -25,16 +9,38 @@ var turns = +inputs[2]; // number of rounds between the time the alarm countdown
 
 var cellsCount = rows * cols;
 
-var open = [];
-var closed = [];
+var reached = false;
 
-var founded = false;
+var visited = [];
 
-function Cell (idx, parent, category) {
-  this.idx = idx;
-  this.parent = parent;
-  this.category = category;
+function checkEdges (idx) {
+  return idx >= 0 && idx < cellsCount;
 }
+
+function checkIdxForBlindedScan (idx, m) {
+  return checkEdges(idx) && visited.indexOf(idx) === -1 && (m[idx] === '.' || m[idx] === 'C');
+}
+
+function idxToCoords (idx) {
+  return [Math.floor(idx / cols), idx % cols];
+}
+
+function getMove (fromX, fromY, toX, toY) {
+  if (fromX === toX) {
+    if (fromY > toY) {
+      return 'UP';
+    } else {
+      return 'DOWN';
+    }
+  } else {
+    if (fromX > toX) {
+      return 'LEFT';
+    } else {
+      return 'RIGHT';
+    }
+  }
+}
+
 // game loop
 while (true) {
   inputs = readline().split(' ');
@@ -53,20 +59,36 @@ while (true) {
   }
   var cIdx = maze.indexOf('C');
 
+  var lastIdx, coords;
+
   if (cIdx !== -1) {
-    if (!founded && kirkIdx === cIdx) {
-      founded = true;
+    if (!reached && kirkIdx === cIdx) {
+      reached = true;
     }
 
-    if (founded) {
-      // escape
-      print('LEFT');
-    } else {
-      // guided scan
-      print('RIGHT');
+    if (reached) {
+      printErr('????')
+      lastIdx = visited.pop();
+      coords = idxToCoords(lastIdx);
+      print(getMove(kirkCol, kirkRow, coords[0], coords[1]));
+      continue;
     }
-  } else {
-    // blinded scan
+  }
+
+  if (checkIdxForBlindedScan(topIdx, maze)) {
+    print('UP');
+    visited.push(topIdx);
+  } else if (checkIdxForBlindedScan(bottomIdx, maze)) {
+    print('DOWN');
+    visited.push(bottomIdx);
+  } else if (checkIdxForBlindedScan(leftIdx, maze)) {
+    print('LEFT');
+    visited.push(leftIdx);
+  } else if (checkIdxForBlindedScan(rightIdx, maze)) {
     print('RIGHT');
+  } else {
+    lastIdx = visited.pop();
+    coords = idxToCoords(lastIdx);
+    print(getMove(kirkCol, kirkRow, coords[0], coords[1]));
   }
 }
