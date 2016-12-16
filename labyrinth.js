@@ -12,6 +12,7 @@ var cellsCount = rows * cols;
 var reached = false;
 
 var visited = [];
+var movementStack = [];
 
 function checkEdges (idx) {
   return idx >= 0 && idx < cellsCount;
@@ -22,10 +23,15 @@ function checkIdxForBlindedScan (idx, m) {
 }
 
 function idxToCoords (idx) {
-  return [Math.floor(idx / cols), idx % cols];
+  return [idx % cols, Math.floor(idx / cols)];
+}
+
+function coordsToIdx (x, y) {
+  return x * cols + y;
 }
 
 function getMove (fromX, fromY, toX, toY) {
+  printErr(`from: ${fromX}, ${fromY}; to: ${toX}, ${toY}`);
   if (fromX === toX) {
     if (fromY > toY) {
       return 'UP';
@@ -41,11 +47,14 @@ function getMove (fromX, fromY, toX, toY) {
   }
 }
 
+var teleportIdx;
+
 // game loop
 while (true) {
   inputs = readline().split(' ');
   var kirkRow = +inputs[0]; // row where Kirk is located.
   var kirkCol = +inputs[1]; // column where Kirk is located.
+
   var kirkIdx = kirkRow * cols + kirkCol;
 
   var topIdx = (kirkRow - 1) * cols + kirkCol;
@@ -55,8 +64,14 @@ while (true) {
 
   var maze = '';
   for (var i = 0; i < rows; i++) {
-    maze += readline();
+    var line = readline();
+    maze += line;
   }
+
+  if (!teleportIdx) {
+    teleportIdx = maze.indexOf('T');
+  }
+
   var cIdx = maze.indexOf('C');
 
   var lastIdx, coords;
@@ -67,27 +82,36 @@ while (true) {
     }
 
     if (reached) {
-      printErr('????')
       lastIdx = visited.pop();
-      coords = idxToCoords(lastIdx);
+      if (lastIdx) {
+        coords = idxToCoords(lastIdx);
+      } else {
+        coords = idxToCoords(teleportIdx);
+      }
       print(getMove(kirkCol, kirkRow, coords[0], coords[1]));
       continue;
     }
   }
 
   if (checkIdxForBlindedScan(topIdx, maze)) {
+    visited.push(kirkIdx);
+    movementStack.push(kirkIdx);
     print('UP');
-    visited.push(topIdx);
   } else if (checkIdxForBlindedScan(bottomIdx, maze)) {
+    visited.push(kirkIdx);
+    movementStack.push(kirkIdx);
     print('DOWN');
-    visited.push(bottomIdx);
   } else if (checkIdxForBlindedScan(leftIdx, maze)) {
+    visited.push(kirkIdx);
+    movementStack.push(kirkIdx);
     print('LEFT');
-    visited.push(leftIdx);
   } else if (checkIdxForBlindedScan(rightIdx, maze)) {
+    visited.push(kirkIdx);
+    movementStack.push(kirkIdx);
     print('RIGHT');
   } else {
-    lastIdx = visited.pop();
+    lastIdx = movementStack.pop();
+    printErr(movementStack.length);
     coords = idxToCoords(lastIdx);
     print(getMove(kirkCol, kirkRow, coords[0], coords[1]));
   }
