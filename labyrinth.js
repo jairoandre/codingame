@@ -27,11 +27,10 @@ function idxToCoords (idx) {
 }
 
 function coordsToIdx (x, y) {
-  return x * cols + y;
+  return y * cols + x;
 }
 
 function getMove (fromX, fromY, toX, toY) {
-  printErr(`from: ${fromX}, ${fromY}; to: ${toX}, ${toY}`);
   if (fromX === toX) {
     if (fromY > toY) {
       return 'UP';
@@ -47,24 +46,49 @@ function getMove (fromX, fromY, toX, toY) {
   }
 }
 
+function getNeighbors (idx) {
+  var coords = idxToCoords(idx);
+  var neighbors = [];
+  var x = coords[0];
+  var y = coords[1];
+  neighbors.push(coordsToIdx(x + 1, y));
+  neighbors.push(coordsToIdx(x - 1, y));
+  neighbors.push(coordsToIdx(x, y + 1));
+  neighbors.push(coordsToIdx(x, y - 1));
+  return neighbors;
+}
+
+function getScore (idx, maze) {
+  if (!maze[idx] || maze[idx] === '#') {
+    return -1;
+  } else if (maze[idx] === 'C') {
+    return 100;
+  } else {
+    var neighbors = getNeighbors(idx);
+    return neighbors.reduce((p, nIdx) => {
+      var value = maze[nIdx];
+      if (value && value === '?') {
+        return p + 1;
+      } else {
+        return p;
+      }
+    }, 0);
+  }
+}
+
 var teleportIdx;
 
 // game loop
 while (true) {
   inputs = readline().split(' ');
-  var kirkRow = +inputs[0]; // row where Kirk is located.
-  var kirkCol = +inputs[1]; // column where Kirk is located.
+  let kirkY = +inputs[0]; // row where Kirk is located.
+  let kirkX = +inputs[1]; // column where Kirk is located.
 
-  var kirkIdx = kirkRow * cols + kirkCol;
+  let kirkIdx = coordsToIdx(kirkX, kirkY);
 
-  var topIdx = (kirkRow - 1) * cols + kirkCol;
-  var bottomIdx = (kirkRow + 1) * cols + kirkCol;
-  var leftIdx = kirkRow * cols + kirkCol - 1;
-  var rightIdx = kirkRow * cols + kirkCol + 1;
-
-  var maze = '';
-  for (var i = 0; i < rows; i++) {
-    var line = readline();
+  let maze = '';
+  for (let i = 0; i < rows; i++) {
+    let line = readline();
     maze += line;
   }
 
@@ -72,9 +96,9 @@ while (true) {
     teleportIdx = maze.indexOf('T');
   }
 
-  var cIdx = maze.indexOf('C');
+  let cIdx = maze.indexOf('C');
 
-  var lastIdx, coords;
+  let lastIdx, coords;
 
   if (cIdx !== -1) {
     if (!reached && kirkIdx === cIdx) {
@@ -88,31 +112,24 @@ while (true) {
       } else {
         coords = idxToCoords(teleportIdx);
       }
-      print(getMove(kirkCol, kirkRow, coords[0], coords[1]));
+      print(getMove(kirkX, kirkY, coords[0], coords[1]));
       continue;
     }
   }
 
-  if (checkIdxForBlindedScan(topIdx, maze)) {
-    visited.push(kirkIdx);
-    movementStack.push(kirkIdx);
-    print('UP');
-  } else if (checkIdxForBlindedScan(bottomIdx, maze)) {
-    visited.push(kirkIdx);
-    movementStack.push(kirkIdx);
-    print('DOWN');
-  } else if (checkIdxForBlindedScan(leftIdx, maze)) {
-    visited.push(kirkIdx);
-    movementStack.push(kirkIdx);
-    print('LEFT');
-  } else if (checkIdxForBlindedScan(rightIdx, maze)) {
-    visited.push(kirkIdx);
-    movementStack.push(kirkIdx);
-    print('RIGHT');
-  } else {
-    lastIdx = movementStack.pop();
-    printErr(movementStack.length);
-    coords = idxToCoords(lastIdx);
-    print(getMove(kirkCol, kirkRow, coords[0], coords[1]));
+  let neighbors = getNeighbors(kirkIdx);
+  let picked, record;
+  for (let i = 0, len = neighbors.length; i < len; i++) {
+    let currScore = getScore(neighbors[i], maze);
+    printErr(`${maze[neighbors[i]]}: ${currScore}`);
+    if (!picked || currScore > record) {
+      picked = neighbors[i];
+      record = currScore;
+    }
   }
+  coords = idxToCoords(picked);
+  let move = getMove(kirkX, kirkY, coords[0], coords[1]);
+  print(move);
+  visited.push(kirkIdx);
+
 }
